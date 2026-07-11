@@ -1,0 +1,10 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    uid: prometheus  # 💡 核心：强制固定 UID 为 prometheus，完美匹配告警和面板代码
+    editable: true

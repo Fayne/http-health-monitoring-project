@@ -1,0 +1,97 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+    ports:
+      - "8000:8000"
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - monitor-network
+  
+  worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+    command: php artisan queue:work redis --queue=default --sleep=3 --tries=3
+    depends_on:
+      - redis
+      - mysql
+    networks:
+      - monitor-network
+  
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+    command: php artisan schedule:work
+    depends_on:
+      - redis
+      - mysql
+    networks:
+      - monitor-network
+  
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: laravel_db
+      MYSQL_ROOT_PASSWORD: 123456
+    expose:
+      - "3306"
+    volumes:
+      - ./docker-runtime/mysql:/var/lib/mysql
+    networks:
+      - monitor-network
+  
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    expose:
+      - "6379"
+    networks:
+      - monitor-network
+  
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./docker-runtime/prometheus:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - monitor-network
+  
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./docker-runtime/grafana:/var/lib/grafana
+      - ./docker/grafana/provisioning/alerting/alerting.yaml:/etc/grafana/provisioning/alerting/alerting.yaml
+      - ./docker/grafana/provisioning/datasources/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./docker/grafana/provisioning/dashboards/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./docker/grafana/provisioning/dashboards/laravel_url_monitor.json:/etc/grafana/provisioning/dashboards/json/laravel_url_monitor.json
+    
+    networks:
+      - monitor-network
+
+networks:
+  monitor-network:
+    driver: bridge
