@@ -1,27 +1,33 @@
 apiVersion: 1
 
-# 1. 接收渠道拆分
+# 1. 接收渠道拆分 (增加 orgId: 1 强绑定)
 contactPoints:
-  - name: 'DingTalk-Only' # 组 A：仅发钉钉
+  - orgId: 1
+    name: 'DingTalk-Only'
     receivers:
       - uid: 'dingding-only-receiver'
         type: 'dingding'
         settings:
           url: 'https://oapi.dingtalk.com/robot/send?access_token=7d777a3d99c57291befcc6ca857bbd41ccf91c1f21df216dec806353139a7cb8'
   
-  - name: 'DingTalk-And-Email-Critical' # 组 B：钉钉与邮件双重轰炸 (用于高危)
+  - orgId: 1
+    name: 'DingTalk-And-Email-Critical'
     receivers:
       - uid: 'email-critical-receiver'
         type: 'email'
         settings:
-          addresses: 'fayne@mobilenowgroup.com' # 你的接收邮箱
+          addresses: 'fayne@mobilenowgroup.com'
       - uid: 'dingding-critical-receiver'
         type: 'dingding'
         settings:
           url: 'https://oapi.dingtalk.com/robot/send?access_token=7d777a3d99c57291befcc6ca857bbd41ccf91c1f21df216dec806353139a7cb8'
-  
-# 2. 第二步：配置通知策略 (Notification Policies) - 绑定告警去向time_intervals:
-  - name: 'non-working-hours'
+
+# 2. 配置静默时间区间
+# 关键修复：顶层 key 必须是 muteTimes（不是 muteTimeIntervals），
+# 内部字段必须是 time_intervals / start_time / end_time（snake_case）
+muteTimes:
+  - orgId: 1
+    name: 'non-working-hours'
     time_intervals:
       - weekdays: ['saturday', 'sunday']
       - times:
@@ -30,42 +36,42 @@ contactPoints:
           - start_time: '20:00'
             end_time: '24:00'
 
-# 3. 告警路由策略：根据严重程度分发到不同渠道
+# 3. 告警路由策略
 policies:
   - orgId: 1
-    receiver: 'DingTalk-Only' # 💡 默认接收器：如果没有特殊匹配，所有普通告警仅发钉钉
+    receiver: 'DingTalk-Only'
     group_by: ['alertname', 'name']
     group_wait: '10s'
     group_interval: '5m'
     repeat_interval: '24h'
     routes:
-      # 🚨 致命级别 (500错误) -> 走双路通道 (邮件+钉钉)
+      # 🚨 致命级别 (非200错误) -> 走双路
       - receiver: 'DingTalk-And-Email-Critical'
         matchers:
-          - "alert_type = http_500"
+          - "alert_type = http_error"
         repeat_interval: '4h'
       
-      # ⚠️ 警告级别 (延迟超标) -> 仅走钉钉
+      # ⚠️ 警告级别 (延迟超标) -> 仅发钉钉
       - receiver: 'DingTalk-Only'
         matchers:
           - "alert_type = high_latency"
         repeat_interval: '12h'
       
-      # 🟢 提示级别 (SSL 30天) -> 仅走钉钉
+      # 🟢 提示级别 (SSL 30天) -> 仅发钉钉，一周一次
       - receiver: 'DingTalk-Only'
         matchers:
           - "alert_type = ssl_alert"
           - "urgency = low"
         repeat_interval: '168h'
       
-      # 🟡 警告级别 (SSL 20天) -> 仅走钉钉
+      # 🟡 警告级别 (SSL 20天) -> 仅发钉钉，三天一次
       - receiver: 'DingTalk-Only'
         matchers:
           - "alert_type = ssl_alert"
           - "urgency = medium"
         repeat_interval: '72h'
       
-      # 🔴 致命级别 (SSL 10天) -> 走双路通道 (邮件+钉钉)
+      # 🔴 致命级别 (SSL 10天) -> 走双路，每天一次且非工作时间免打扰
       - receiver: 'DingTalk-And-Email-Critical'
         matchers:
           - "alert_type = ssl_alert"
@@ -74,45 +80,81 @@ policies:
         mute_time_intervals:
           - 'non-working-hours'
 
-# 3. 第三步：配置告警规则 (Alert Rules) - 写入 PromQL 表达式
+# 4. 告警规则
 groups:
   - orgId: 1
     name: 'Website-Monitor-Alerts'
     folder: 'Site Monitoring'
-    interval: '1m' # 每 1 分钟检测一次
+    interval: '1m'
     rules:
-      # 规则 A：SSL 证书过期告警
-      - uid: 'ssl_expiry_alert_uid'
-        title: '🔒 SSL 证书即将过期告警'
+      # --- 规则 A1：SSL 剩余 <=30 天 且 >20 天 (低优先级) ---
+      - uid: 'ssl_expiry_30d'
+        title: '🔒 SSL 证书还有不到 30 天过期'
         condition: 'A'
-        for: '2m' # 持续 2 分钟异常才真正发通知，防止网络抖动误报
-        data:
-          - refId: 'A'
-            datasourceUid: 'prometheus' # 必须与你配置的普罗米修斯数据源UID一致
-            relativeTimeRange:
-              from: 300
-              to: 0
-            model:
-              expr: 'laravel_monitor_ssl_certificate_expiry_days < 30'
-              type: 'query'
-        annotations:
-          summary: '站点 {{ $labels.name }} 的 SSL 证书还有 {{ $value }} 天就要过期了！'
-          description: '检测到目标 URL: {{ $labels.url }} 证书有效期不足 30 天，请尽快更新证书。'
-      
-      # 规则 B：非 200 错误率超标告警
-      - uid: 'http_error_rate_alert_uid'
-        title: '🚨 站点访问错误率超标告警'
-        condition: 'A'
-        for: '3m' # 持续 3 分钟异常才发通知
+        for: '2m'
+        labels:
+          alert_type: 'ssl_alert'
+          urgency: 'low'
         data:
           - refId: 'A'
             datasourceUid: 'prometheus'
-            relativeTimeRange:
-              from: 300
-              to: 0
+            relativeTimeRange: { from: 300, to: 0 }
+            model:
+              expr: 'laravel_monitor_ssl_certificate_expiry_days <= 30 and laravel_monitor_ssl_certificate_expiry_days > 20'
+              type: 'query'
+        annotations:
+          summary: '站点 {{ $labels.name }} 证书剩余 {{ $value }} 天。每周提醒 1 次。'
+      
+      # --- 规则 A2：SSL 剩余 <=20 天 且 >10 天 (中优先级) ---
+      - uid: 'ssl_expiry_20d'
+        title: '🔒 SSL 证书还有不到 20 天过期'
+        condition: 'A'
+        for: '2m'
+        labels:
+          alert_type: 'ssl_alert'
+          urgency: 'medium'
+        data:
+          - refId: 'A'
+            datasourceUid: 'prometheus'
+            relativeTimeRange: { from: 300, to: 0 }
+            model:
+              expr: 'laravel_monitor_ssl_certificate_expiry_days <= 20 and laravel_monitor_ssl_certificate_expiry_days > 10'
+              type: 'query'
+        annotations:
+          summary: '站点 {{ $labels.name }} 证书剩余 {{ $value }} 天。每 3 天提醒 1 次。'
+      
+      # --- 规则 A3：SSL 剩余 <=10 天 (高优先级) ---
+      - uid: 'ssl_expiry_10d'
+        title: '🆘 SSL 证书极度濒危 (10天内)！'
+        condition: 'A'
+        for: '2m'
+        labels:
+          alert_type: 'ssl_alert'
+          urgency: 'high'
+        data:
+          - refId: 'A'
+            datasourceUid: 'prometheus'
+            relativeTimeRange: { from: 300, to: 0 }
+            model:
+              expr: 'laravel_monitor_ssl_certificate_expiry_days <= 10'
+              type: 'query'
+        annotations:
+          summary: '站点 {{ $labels.name }} 证书即将失效 (仅剩 {{ $value }} 天)。每日提醒并抄送邮件！'
+      
+      # --- 规则 B：非 200 错误率超标告警 ---
+      - uid: 'http_error_rate_alert_uid'
+        title: '🚨 站点访问异常！错误率超标告警'
+        condition: 'A'
+        for: '3m'
+        labels:
+          alert_type: 'http_error'
+        data:
+          - refId: 'A'
+            datasourceUid: 'prometheus'
+            relativeTimeRange: { from: 300, to: 0 }
             model:
               expr: 'sum(rate(laravel_monitor_url_requests_total{status!="200"}[5m])) by (name, url) / sum(rate(laravel_monitor_url_requests_total[5m])) by (name, url) * 100 > 5'
               type: 'query'
         annotations:
           summary: '站点 {{ $labels.name }} 访问异常！'
-          description: '目标 URL: {{ $labels.url }} 最近 5 分钟内的非 200 请求占比已达 {{ $value }}%，超过 5% 的阈值，请检查服务状态。'
+          description: '目标 URL: {{ $labels.url }} 最近 5 分钟内的非 200 请求占比已达 {{ $value }}%，请检查服务状态。'
