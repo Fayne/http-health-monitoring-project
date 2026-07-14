@@ -9,15 +9,26 @@
         {
             "type": "stat",
             "title": "✅ HTTP 200 整体成功率",
-            "gridPos": { "h": 5, "w": 12, "x": 0, "y": 0 },
+            "gridPos": {
+                "h": 5,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
             "id": 1,
-            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
             "targets": [
                 {
-                    "datasource": { "type": "prometheus", "uid": "prometheus" },
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
                     "editorMode": "code",
-                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$project\", status=\"200\"}[5m])) / sum(rate(laravel_monitor_url_requests_total{name=~\"$project\"}[5m])) * 100",
-                    "legendFormat": "成功率",
+                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$project\", status=~\"[123]\\\\d\\\\d\"}[5m])) / sum(rate(laravel_monitor_url_requests_total{name=~\"$project\"}[5m])) * 100",
+                    "legendFormat": "整体成功率",
                     "range": true,
                     "refId": "A"
                 }
@@ -30,9 +41,18 @@
                     "thresholds": {
                         "mode": "absolute",
                         "steps": [
-                            { "color": "red", "value": null },
-                            { "color": "orange", "value": 95 },
-                            { "color": "green", "value": 99 }
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 95
+                            },
+                            {
+                                "color": "green",
+                                "value": 99
+                            }
                         ]
                     }
                 }
@@ -40,15 +60,26 @@
         },
         {
             "type": "stat",
-            "title": "⚠️ 异常请求占比 (非 200)",
-            "gridPos": { "h": 5, "w": 12, "x": 12, "y": 0 },
+            "title": "⚠️ 异常请求占比",
+            "gridPos": {
+                "h": 5,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
             "id": 2,
-            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
             "targets": [
                 {
-                    "datasource": { "type": "prometheus", "uid": "prometheus" },
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
                     "editorMode": "code",
-                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$project\", status!=\"200\"}[5m])) / sum(rate(laravel_monitor_url_requests_total{name=~\"$project\"}[5m])) * 100",
+                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$project\", status=~\"[45]\\\\d\\\\d|0|error|timeout\"}[5m])) / sum(rate(laravel_monitor_url_requests_total{name=~\"$project\"}[5m])) * 100",
                     "legendFormat": "错误率",
                     "range": true,
                     "refId": "A"
@@ -62,9 +93,18 @@
                     "thresholds": {
                         "mode": "absolute",
                         "steps": [
-                            { "color": "green", "value": null },
-                            { "color": "yellow", "value": 1 },
-                            { "color": "red", "value": 5 }
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 5
+                            }
                         ]
                     }
                 }
@@ -73,12 +113,23 @@
         {
             "type": "timeseries",
             "title": "⏱️ 各站点请求延迟趋势 (Latency)",
-            "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 5
+            },
             "id": 3,
-            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
             "targets": [
                 {
-                    "datasource": { "type": "prometheus", "uid": "prometheus" },
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
                     "editorMode": "code",
                     "expr": "laravel_monitor_url_request_latency_seconds{name=~\"$project\"}",
                     "legendFormat": "{{name}}",
@@ -97,14 +148,205 @@
             }
         },
         {
-            "type": "bargauge",
-            "title": "🔒 SSL 证书健康状态 (剩余天数)",
-            "gridPos": { "h": 7, "w": 24, "x": 0, "y": 13 },
-            "id": 4,
-            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "type": "table",
+            "title": "🔍 分站点异常率排行",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 13
+            },
+            "id": 5,
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
             "targets": [
                 {
-                    "datasource": { "type": "prometheus", "uid": "prometheus" },
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$project\", status=~\"[45]\\\\d\\\\d|0|error|timeout\"}[5m])) by (name) / sum(rate(laravel_monitor_url_requests_total{name=~\"$project\"}[5m])) by (name) * 100",
+                    "instant": true,
+                    "legendFormat": "{{name}}",
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {}
+                },
+                {
+                    "id": "merge",
+                    "options": {}
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true,
+                            "__name__": true
+                        },
+                        "renameByName": {
+                            "name": "站点",
+                            "Value": "异常率 (%)"
+                        }
+                    }
+                },
+                {
+                    "id": "sortBy",
+                    "options": {
+                        "fields": {},
+                        "sort": [
+                            {
+                                "field": "异常率 (%)",
+                                "desc": true
+                            }
+                        ]
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "custom": {
+                        "align": "left"
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 5
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "异常率 (%)"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.cellOptions",
+                                "value": {
+                                    "type": "color-background"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "type": "barchart",
+            "title": "📊 分站点状态码分布",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 13
+            },
+            "id": 6,
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$project\", status=~\"[45]\\\\d\\\\d|0|error|timeout\"}[5m])) by (name, status)",
+                    "instant": true,
+                    "legendFormat": "{{name}} - {{status}}",
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {}
+                },
+                {
+                    "id": "merge",
+                    "options": {}
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true,
+                            "__name__": true
+                        },
+                        "renameByName": {
+                            "name": "站点"
+                        }
+                    }
+                },
+                {
+                    "id": "partitionByValues",
+                    "options": {
+                        "fields": ["status"],
+                        "naming": {
+                            "asLabels": true
+                        }
+                    }
+                }
+            ],
+            "options": {
+                "orientation": "vertical",
+                "xTickLabelRotation": 0,
+                "stacking": "normal",
+                "showValue": "auto",
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps"
+                }
+            }
+        },
+        {
+            "type": "bargauge",
+            "title": "🔒 SSL 证书健康状态",
+            "gridPos": {
+                "h": 7,
+                "w": 24,
+                "x": 0,
+                "y": 20
+            },
+            "id": 4,
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
                     "editorMode": "code",
                     "expr": "laravel_monitor_ssl_certificate_expiry_days{name=~\"$project\"}",
                     "legendFormat": "{{name}}",
@@ -120,9 +362,18 @@
                     "thresholds": {
                         "mode": "absolute",
                         "steps": [
-                            { "color": "red", "value": null },
-                            { "color": "yellow", "value": 30 },
-                            { "color": "green", "value": 90 }
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 30
+                            },
+                            {
+                                "color": "green",
+                                "value": 90
+                            }
                         ]
                     }
                 }
@@ -137,17 +388,23 @@
     "schemaVersion": 39,
     "style": "dark",
     "tags": ["laravel", "monitor"],
-    "time": { "from": "now-15m", "to": "now" },
+    "time": {
+        "from": "now-15m",
+        "to": "now"
+    },
     "timepicker": {},
     "timezone": "browser",
     "title": "Laravel 完美监控大盘 (完全体)",
     "uid": "laravel-site-monitor-perfect",
-    "version": 3,
+    "version": 6,
     "templating": {
         "list": [
             {
                 "current": {},
-                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                },
                 "definition": "label_values(laravel_monitor_url_requests_total, name)",
                 "hide": 0,
                 "includeAll": true,
