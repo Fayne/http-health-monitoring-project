@@ -3,8 +3,11 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Nova\MonitoredUrl;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Fortify\Features;
+use Laravel\Nova\Menu\MenuItem;
 use Laravel\Nova\Nova;
 use Laravel\Nova\NovaApplicationServiceProvider;
 
@@ -17,7 +20,14 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     {
         parent::boot();
 
-        //
+        Nova::initialPath('/resources/monitored-urls');
+        Nova::withoutGlobalSearch();
+
+        Nova::mainMenu(function (Request $request) {
+            return [
+                MenuItem::resource(MonitoredUrl::class),
+            ];
+        });
     }
 
     /**
@@ -42,7 +52,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     {
         Nova::routes()
             ->withAuthenticationRoutes(default: true)
-            ->withPasswordResetRoutes()
+            ->withoutPasswordResetRoutes(forgotPassword: false)
             ->withoutEmailVerificationRoutes()
             ->register();
     }
@@ -68,9 +78,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
      */
     protected function dashboards(): array
     {
-        return [
-            new \App\Nova\Dashboards\Main,
-        ];
+        return [];
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Nova;
 
 use Illuminate\Http\Request;
 use Laravel\Nova\Auth\PasswordValidationRules;
+use Laravel\Nova\Contracts\Cover;
 use Laravel\Nova\Fields\Gravatar;
 use Laravel\Nova\Fields\ID;
 use Laravel\Nova\Fields\Password;
@@ -104,5 +105,16 @@ class User extends Resource
     public function actions(NovaRequest $request): array
     {
         return [];
+    }
+
+    /**
+     * 不显示Gravatar，因为没有VPN的话打不开
+     *
+     * @param \Laravel\Nova\Http\Requests\NovaRequest $request
+     * @return \Laravel\Nova\Contracts\Cover|null
+     */
+    public function resolveAvatarField(NovaRequest $request): ?Cover
+    {
+        return null;
     }
 }
