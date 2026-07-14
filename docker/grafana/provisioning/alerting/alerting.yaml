@@ -26,7 +26,7 @@ policies:
 groups:
   - orgId: 1
     name: 'Website-Monitor-Alerts'
-    folder: 'Site Alerts'
+    folder: 'Site Monitoring'
     interval: '1m' # 每 1 分钟检测一次
     rules:
       # 规则 A：SSL 证书过期告警

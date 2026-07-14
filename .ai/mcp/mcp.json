@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "laravel-boost": {
+      "command": "/Users/fayne/Library/Application Support/Herd/bin/php84",
+      "args": [
+        "/Users/fayne/Code/research-projects/http-health-monitoring/artisan",
+        "boost:mcp"
+      ]
+    }
+  }
+}

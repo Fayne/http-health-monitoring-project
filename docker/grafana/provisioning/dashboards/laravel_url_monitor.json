@@ -16,7 +16,7 @@
                 {
                     "datasource": { "type": "prometheus", "uid": "prometheus" },
                     "editorMode": "code",
-                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$site_name\", status=\"200\"}[5m])) / sum(rate(laravel_monitor_url_requests_total{name=~\"$site_name\"}[5m])) * 100",
+                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$project\", status=\"200\"}[5m])) / sum(rate(laravel_monitor_url_requests_total{name=~\"$project\"}[5m])) * 100",
                     "legendFormat": "成功率",
                     "range": true,
                     "refId": "A"
@@ -48,7 +48,7 @@
                 {
                     "datasource": { "type": "prometheus", "uid": "prometheus" },
                     "editorMode": "code",
-                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$site_name\", status!=\"200\"}[5m])) / sum(rate(laravel_monitor_url_requests_total{name=~\"$site_name\"}[5m])) * 100",
+                    "expr": "sum(rate(laravel_monitor_url_requests_total{name=~\"$project\", status!=\"200\"}[5m])) / sum(rate(laravel_monitor_url_requests_total{name=~\"$project\"}[5m])) * 100",
                     "legendFormat": "错误率",
                     "range": true,
                     "refId": "A"
@@ -80,7 +80,7 @@
                 {
                     "datasource": { "type": "prometheus", "uid": "prometheus" },
                     "editorMode": "code",
-                    "expr": "laravel_monitor_url_request_latency_seconds{name=~\"$site_name\"}",
+                    "expr": "laravel_monitor_url_request_latency_seconds{name=~\"$project\"}",
                     "legendFormat": "{{name}}",
                     "range": true,
                     "refId": "A"
@@ -106,7 +106,7 @@
                 {
                     "datasource": { "type": "prometheus", "uid": "prometheus" },
                     "editorMode": "code",
-                    "expr": "laravel_monitor_ssl_certificate_expiry_days{name=~\"$site_name\"}",
+                    "expr": "laravel_monitor_ssl_certificate_expiry_days{name=~\"$project\"}",
                     "legendFormat": "{{name}}",
                     "range": true,
                     "refId": "A"
@@ -152,7 +152,7 @@
                 "hide": 0,
                 "includeAll": true,
                 "multi": true,
-                "name": "site_name",
+                "name": "project",
                 "options": [],
                 "query": {
                     "query": "label_values(laravel_monitor_url_requests_total, name)",
