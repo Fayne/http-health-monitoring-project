@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - ssl_checker.json
+      - .github/workflows/ssl-check.yml
 
 permissions:
   contents: read
@@ -80,9 +81,11 @@ jobs:
           MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"---"
           MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"*由 GitHub Actions 自动检测*"
 
+          printf '%s' "$MARKDOWN_TEXT" > /tmp/markdown.txt
+
           PAYLOAD=$(jq -n \
             --arg title "SSL证书到期告警" \
-            --arg text "$MARKDOWN_TEXT" \
+            --rawfile text /tmp/markdown.txt \
             '{msgtype: "markdown", markdown: {title: $title, text: $text}}')
 
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
