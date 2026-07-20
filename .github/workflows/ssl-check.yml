@@ -25,9 +25,8 @@ jobs:
           DINGTALK_WEBHOOK_SECRET: ${{ secrets.DINGTALK_WEBHOOK_SECRET }}
         run: |
           ALERT_LINES=""
-
-          ENTRIES=$(jq -c '.[]' ssl_checker.json)
-          for entry in $ENTRIES; do
+          
+          while IFS= read -r entry; do
             NAME=$(echo "$entry" | jq -r '.name')
             URL=$(echo "$entry" | jq -r '.url')
             WARNING=$(echo "$entry" | jq -r '.warning_duration')
@@ -59,8 +58,8 @@ jobs:
             if [ "$REMAINING_DAYS" -le "$WARNING" ]; then
               ALERT_LINES="${ALERT_LINES}- **${NAME}** (\`${HOST}:${PORT}\`): 剩余 **${REMAINING_DAYS}** 天（阈值 ${WARNING} 天），到期时间 ${CERT_EXPIRY}\n"
             fi
-          done
-
+          done < <(jq -c '.[]' ssl_checker.json)
+          
           if [ -z "$ALERT_LINES" ]; then
             echo "All certificates are within safe range."
             exit 0
