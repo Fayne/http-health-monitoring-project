@@ -1,0 +1,98 @@
+name: SSL Certificate Check
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *'
+  push:
+    paths:
+      - ssl_checker.json
+
+permissions:
+  contents: read
+
+jobs:
+  check-ssl:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check SSL certificates and notify
+        env:
+          DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
+          DINGTALK_WEBHOOK_SECRET: ${{ secrets.DINGTALK_WEBHOOK_SECRET }}
+        run: |
+          ALERT_LINES=""
+
+          ENTRIES=$(jq -c '.[]' ssl_checker.json)
+          for entry in $ENTRIES; do
+            NAME=$(echo "$entry" | jq -r '.name')
+            URL=$(echo "$entry" | jq -r '.url')
+            WARNING=$(echo "$entry" | jq -r '.warning_duration')
+
+            RAW_HOST=$(echo "$URL" | sed -E 's|https?://||; s|/.*||')
+            if echo "$RAW_HOST" | grep -q ':'; then
+              HOST=$(echo "$RAW_HOST" | cut -d: -f1)
+              PORT=$(echo "$RAW_HOST" | cut -d: -f2)
+            else
+              HOST="$RAW_HOST"
+              PORT=443
+            fi
+
+            CERT_EXPIRY=$(echo | openssl s_client -connect "${HOST}:${PORT}" -servername "$HOST" 2>/dev/null \
+              | openssl x509 -noout -enddate 2>/dev/null \
+              | sed 's/notAfter=//')
+
+            if [ -z "$CERT_EXPIRY" ]; then
+              echo "::warning::Failed to retrieve SSL certificate for ${NAME} (${HOST}:${PORT})"
+              continue
+            fi
+
+            EXPIRE_EPOCH=$(date -d "$CERT_EXPIRY" +%s)
+            NOW_EPOCH=$(date +%s)
+            REMAINING_DAYS=$(( (EXPIRE_EPOCH - NOW_EPOCH) / 86400 ))
+
+            echo "${NAME} (${HOST}:${PORT}): ${REMAINING_DAYS} days remaining (warning <= ${WARNING} days)"
+
+            if [ "$REMAINING_DAYS" -le "$WARNING" ]; then
+              ALERT_LINES="${ALERT_LINES}- **${NAME}** (\`${HOST}:${PORT}\`): 剩余 **${REMAINING_DAYS}** 天（阈值 ${WARNING} 天），到期时间 ${CERT_EXPIRY}"$'\n'
+            fi
+          done
+
+          if [ -z "$ALERT_LINES" ]; then
+            echo "All certificates are within safe range."
+            exit 0
+          fi
+
+          echo "Sending DingTalk alert..."
+
+          TIMESTAMP=$(date +%s%3N)
+          STRING_TO_SIGN=$(printf '%s\n%s' "$TIMESTAMP" "$DINGTALK_WEBHOOK_SECRET")
+          SIGN=$(printf '%s' "$STRING_TO_SIGN" | openssl dgst -sha256 -hmac "$DINGTALK_WEBHOOK_SECRET" -binary | base64 -w 0)
+          ENCODED_SIGN=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$SIGN', safe=''))")
+
+          SIGNED_URL="${DINGTALK_WEBHOOK_URL}&timestamp=${TIMESTAMP}&sign=${ENCODED_SIGN}"
+
+          MARKDOWN_TEXT="## 🔒 SSL证书到期告警"$'\n'
+          MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"以下域名的 SSL 证书即将到期："$'\n'
+          MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"${ALERT_LINES}"
+          MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"---"
+          MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"*由 GitHub Actions 自动检测*"
+
+          PAYLOAD=$(jq -n \
+            --arg title "SSL证书到期告警" \
+            --arg text "$MARKDOWN_TEXT" \
+            '{msgtype: "markdown", markdown: {title: $title, text: $text}}')
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$SIGNED_URL")
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "DingTalk notification sent successfully."
+          else
+            echo "::error::DingTalk notification failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi

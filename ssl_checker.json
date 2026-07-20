@@ -1,0 +1,42 @@
+[
+    {
+        "name": "MobileNow",
+        "url": "https://www.mobilenowgroup.com",
+        "warning_duration": "7"
+    },
+    {
+        "name": "徕卡官网",
+        "url": "https://www.leica-camera.cn",
+        "warning_duration": "30"
+    },
+    {
+        "name": "徕卡学院",
+        "url": "https://akademie.leica-camera.cn",
+        "warning_duration": "30"
+    },
+    {
+        "name": "DFS",
+        "url": "https://www.dfs.com",
+        "warning_duration": "15"
+    },
+    {
+        "name": "Rapha",
+        "url": "https://backend.rapharcc.cn",
+        "warning_duration": "15"
+    },
+    {
+        "name": "IWG",
+        "url": "https://wcmp-api.regus.com.cn",
+        "warning_duration": "15"
+    },
+    {
+        "name": "Manolo Bhlanik",
+        "url": "https://mb-api-prod.manoloblahnik.vip",
+        "warning_duration": "15"
+    },
+    {
+        "name": "Etech Aftersales",
+        "url": "https://aftersales.flexconfig.com:4430",
+        "warning_duration": "15"
+    }
+]
