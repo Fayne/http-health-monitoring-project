@@ -45,6 +45,7 @@ services:
   
   mysql:
     image: mysql:8.0
+    pull_policy: missing
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: laravel_db
@@ -58,6 +59,7 @@ services:
   
   redis:
     image: redis:7-alpine
+    pull_policy: missing
     restart: unless-stopped
     expose:
       - "6379"

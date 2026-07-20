@@ -20,7 +20,7 @@ class UrlCheckJob implements ShouldQueue
 
     public function handle(): void
     {
-        if (!$this->monitoredUrl->is_active) {
+        if (! $this->monitoredUrl->is_active) {
             return;
         }
 
@@ -29,7 +29,7 @@ class UrlCheckJob implements ShouldQueue
 
         // 连接到 Redis 存储指标
         Redis::setDefaultOptions(['host' => env('REDIS_HOST', '127.0.0.1')]);
-        $registry = new CollectorRegistry(new Redis());
+        $registry = new CollectorRegistry(new Redis);
 
         $counter = $registry->getOrRegisterCounter('laravel_monitor', 'url_requests_total', '请求总数', ['url', 'name', 'status']);
         $gaugeLatency = $registry->getOrRegisterGauge('laravel_monitor', 'url_request_latency_seconds', '请求延迟时间', ['url', 'name']);
@@ -44,7 +44,7 @@ class UrlCheckJob implements ShouldQueue
         }
         $latency = microtime(true) - $start;
 
-        $counter->inc(array_merge($labels, [(string)$statusCode]));
+        $counter->inc(array_merge($labels, [(string) $statusCode]));
         $gaugeLatency->set($latency, $labels);
 
         $sslDays = $this->getSslCertificateExpiryDays($url);
@@ -57,24 +57,32 @@ class UrlCheckJob implements ShouldQueue
     {
         try {
             $host = parse_url($url, PHP_URL_HOST);
-            if (!$host) return null;
+            if (! $host) {
+                return null;
+            }
 
-            $context = stream_context_create(["ssl" => ["capture_peer_cert" => true]]);
-            $client = @stream_socket_client("ssl://{$host}:443", $errno, $errstr, 10, STREAM_CLIENT_CONNECT, $context);
+            $port = parse_url($url, PHP_URL_PORT) ?? 443;
 
-            if (!$client) return null;
+            $context = stream_context_create(['ssl' => ['capture_peer_cert' => true]]);
+            $client = @stream_socket_client("ssl://{$host}:{$port}", $errno, $errstr, 10, STREAM_CLIENT_CONNECT, $context);
+
+            if (! $client) {
+                return null;
+            }
 
             $params = stream_context_get_params($client);
-            $cert = $params["options"]["ssl"]["peer_certificate"];
+            $cert = $params['options']['ssl']['peer_certificate'];
             $certInfo = openssl_x509_parse($cert);
 
             if (isset($certInfo['validTo_time_t'])) {
                 $validTo = $certInfo['validTo_time_t'];
+
                 return (int) ceil(($validTo - time()) / 86400);
             }
         } catch (\Exception $e) {
             // 忽略非 HTTPS 或证书解析错误
         }
+
         return null;
     }
 }
