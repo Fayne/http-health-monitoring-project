@@ -57,7 +57,7 @@ jobs:
             echo "${NAME} (${HOST}:${PORT}): ${REMAINING_DAYS} days remaining (warning <= ${WARNING} days)"
 
             if [ "$REMAINING_DAYS" -le "$WARNING" ]; then
-              ALERT_LINES="${ALERT_LINES}- **${NAME}** (\`${HOST}:${PORT}\`): 剩余 **${REMAINING_DAYS}** 天（阈值 ${WARNING} 天），到期时间 ${CERT_EXPIRY}"$'\n'
+              ALERT_LINES="${ALERT_LINES}- **${NAME}** (\`${HOST}:${PORT}\`): 剩余 **${REMAINING_DAYS}** 天（阈值 ${WARNING} 天），到期时间 ${CERT_EXPIRY}\n"
             fi
           done
 
@@ -75,22 +75,37 @@ jobs:
 
           SIGNED_URL="${DINGTALK_WEBHOOK_URL}&timestamp=${TIMESTAMP}&sign=${ENCODED_SIGN}"
 
-          MARKDOWN_TEXT="## 🔒 SSL证书到期告警"$'\n'
-          MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"以下域名的 SSL 证书即将到期："$'\n'
-          MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"${ALERT_LINES}"
-          MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"---"
-          MARKDOWN_TEXT="${MARKDOWN_TEXT}"$'\n'"*由 GitHub Actions 自动检测*"
+          printf '%b' "$ALERT_LINES" > /tmp/alert_lines.txt
 
-          printf '%s' "$MARKDOWN_TEXT" > /tmp/markdown.txt
+          python3 << 'PYEOF'
+          import json
 
-          PAYLOAD=$(jq -n \
-            --arg title "SSL证书到期告警" \
-            --rawfile text /tmp/markdown.txt \
-            '{msgtype: "markdown", markdown: {title: $title, text: $text}}')
+          with open("/tmp/alert_lines.txt") as f:
+              alert_lines = f.read()
+
+          text = (
+              "## 🔒 SSL证书到期告警\n\n"
+              "以下域名的 SSL 证书即将到期：\n\n"
+              f"{alert_lines}\n"
+              "---\n"
+              "*由 GitHub Actions 自动检测*"
+          )
+
+          payload = {
+              "msgtype": "markdown",
+              "markdown": {
+                  "title": "SSL证书到期告警",
+                  "text": text,
+              },
+          }
+
+          with open("/tmp/payload.json", "w") as f:
+              json.dump(payload, f, ensure_ascii=False)
+          PYEOF
 
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
+            -d @/tmp/payload.json \
             "$SIGNED_URL")
 
           if [ "$HTTP_CODE" = "200" ]; then
